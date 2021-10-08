@@ -10,6 +10,7 @@ use rand::seq::SliceRandom;
 use std::str::FromStr;
 use std::time::Duration;
 use humantime::format_duration;
+use std::fs;
 
 fn main() {
     let matches = App::new("pasman")
@@ -34,6 +35,20 @@ fn main() {
                 .short("l")
                 .long("list")
                 .help("lists all the passwords you have")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("find")
+                .short("f")
+                .long("find")
+                .help("find a password")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("create")
+                .short("c")
+                .long("create")
+                .help("make a password")
                 .takes_value(false),
         )
         .arg(
@@ -85,6 +100,9 @@ fn main() {
             let nonce = Nonce::from_slice(b"unique nonce");
             let mut contents = String::new();
             File::open(&[base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join("")).unwrap().read_to_string(&mut contents);
+            let decoded = hex::decode(contents.clone()).unwrap();
+            cipher.decrypt(nonce, decoded.as_ref())
+                .expect("decryption failure!"); // NOTE: handle this error to avoid panics!
             if contents.len() == 0 {
                 println!("Lets add a password what do you want the name to be?");
                 let mut new_accont:String = "".to_string();
@@ -116,7 +134,76 @@ fn main() {
                     println!("{}", String::from_utf8_lossy(&*plaintext).to_string());
                     std::process::exit(1);
                 }
-                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)");
+                if matches.is_present("create") {
+                    println!("what do you want the password account to be (ex. google.com)?");
+                    let mut new_accont:String = "".to_string();
+                    std::io::stdin().read_line(&mut new_accont).unwrap();
+                    new_accont = new_accont.trim().to_string();
+                    if new_accont.contains(" ") {
+                        println!("sorry your account cant have a space in it try something like www.google.com");
+                        std::io::stdin().read_line(&mut new_accont).unwrap();
+                        new_accont = new_accont.trim().to_string();
+                    }
+                    println!("what do you want the password to it");
+                    let mut new_pass:String = "".to_string();
+                    std::io::stdin().read_line(&mut new_pass).unwrap();
+                    new_pass = new_pass.trim().to_string();
+                    if new_accont.contains(" ") {
+                        println!("sorry your password can not have a space in it");
+                        std::io::stdin().read_line(&mut new_pass).unwrap();
+                        new_pass = new_pass.trim().to_string();
+                    }
+                    let decoded = hex::decode(contents.clone()).unwrap();
+                    let plaintext = cipher.decrypt(nonce, decoded.as_ref())
+                        .expect("decryption failure!"); // NOTE: handle this error to avoid panics!
+                    let ciphertext = cipher.encrypt(nonce, [String::from_utf8_lossy(&*plaintext).to_string(), "\n".to_string(), new_accont, " : ".to_string(), new_pass].join("").as_ref())
+                        .expect("encryption failure!"); // NOTE: handle this error to avoid panics!
+                    write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                    std::process::exit(1);
+                }
+                if matches.is_present("find") {
+                    let decoded = hex::decode(contents.clone()).unwrap();
+                    let plaintext = cipher.decrypt(nonce, decoded.as_ref())
+                        .expect("decryption failure!"); // NOTE: handle this error to avoid panics!
+                    let mut account = matches.value_of("find").unwrap().to_string();
+                    if account.contains(" ") {
+                        println!("Sorry the account you are looking for can not have a space in it");
+                        std::io::stdin().read_line(&mut account).unwrap();
+                        account = account.trim().to_string();
+                    }
+                    let split = String::from_utf8_lossy(&*plaintext).to_string().replace("\n", " : ");
+                    let split: Vec<&str> = split.split(" : ").collect();
+                    let mut account_names: Vec<String> = Vec::new();
+                    let mut passwords: Vec<String> = Vec::new();
+                    for x in 0..split.len() {
+                        if x % 2 == 0 {
+                            account_names.push(split[x].to_string());
+                        } else {
+                            passwords.push(split[x].to_string());
+                        }
+                    }
+                    let mut name = Vec::new();
+                    for x in account_names.clone() {
+                        if x.contains(&account) {
+                            name.push(x);
+                        }
+                    }
+                    if name.len() == 0 {
+                        println!("I have not fount any passwords with that name");
+                        std::process::exit(1);
+                    } else if name.len() == 1 {
+                        for x in 0..account_names.clone().len() {
+                            if name.first().unwrap() == &account_names[x] {
+                                println!("{}", passwords[x]);
+                            }
+                        }
+                    }
+                    else {
+                        println!("There is more than one password that has gotten back");
+                    }
+                    std::process::exit(1);
+                }
+                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete all passwords");
                 let mut type_pick:String = "".to_string();
                 std::io::stdin().read_line(&mut type_pick).unwrap();
                 type_pick = type_pick.trim().to_string();
@@ -126,7 +213,7 @@ fn main() {
                     type_pick = type_pick.trim().to_string();
                 }
                 if type_pick == "1" {
-                    println!("what do you want the password account to be?");
+                    println!("what do you want the password account to be (ex. google.com)?");
                     let mut new_accont:String = "".to_string();
                     std::io::stdin().read_line(&mut new_accont).unwrap();
                     new_accont = new_accont.trim().to_string();
@@ -202,6 +289,9 @@ fn main() {
                     let plaintext = cipher.decrypt(nonce, decoded.as_ref())
                         .expect("decryption failure!"); // NOTE: handle this error to avoid panics!
                     println!("{}", String::from_utf8_lossy(&*plaintext).to_string());
+                }
+                else if type_pick == "4" {
+                    fs::remove_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""));
                 }
             }
         }
