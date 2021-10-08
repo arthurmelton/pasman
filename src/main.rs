@@ -222,11 +222,11 @@ fn main() {
                     }
                     std::process::exit(1);
                 }
-                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete a password\n5: Delete all passwords");
+                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete a password\nshift+5: Delete all passwords");
                 let mut type_pick:String = "".to_string();
                 std::io::stdin().read_line(&mut type_pick).unwrap();
                 type_pick = type_pick.trim().to_string();
-                if !["1", "2", "3", "4", "5"].contains(&&*type_pick) {
+                if !["1", "2", "3", "4", "%"].contains(&&*type_pick) {
                     println!("Sorry but you have to pick on of the above type 1 etc");
                     std::io::stdin().read_line(&mut type_pick).unwrap();
                     type_pick = type_pick.trim().to_string();
@@ -318,7 +318,7 @@ fn main() {
                     }
                     table.printstd();
                 }
-                else if type_pick == "5" {
+                else if type_pick == "%" {
                     fs::remove_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""));
                 }
                 else if type_pick == "4" {
