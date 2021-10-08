@@ -28,6 +28,7 @@ fn main() {
             Arg::with_name("password")
                 .short("p")
                 .long("password")
+                .value_name("master password")
                 .help("pass through your password")
                 .takes_value(true),
         )
@@ -42,6 +43,7 @@ fn main() {
             Arg::with_name("find")
                 .short("f")
                 .long("find")
+                .value_name("account name")
                 .help("find a password")
                 .takes_value(true),
         )
@@ -56,7 +58,16 @@ fn main() {
             Arg::with_name("generate")
                 .short("g")
                 .long("generate")
+                .value_name("number")
                 .help("generates a password with the x chars long")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("delete")
+                .short("d")
+                .long("delete")
+                .value_name("account name")
+                .help("delete a password")
                 .takes_value(true),
         )
         .get_matches();
@@ -137,122 +148,24 @@ fn main() {
                 let decoded = hex::decode(contents.clone()).unwrap();
                 cipher.decrypt(nonce, decoded.as_ref())
                     .expect("decryption failure!");
-                if matches.is_present("list") {
-                    let decoded = hex::decode(contents.clone()).unwrap();
-                    let plaintext = cipher.decrypt(nonce, decoded.as_ref())
-                        .expect("decryption failure!");
-                    let mut table = Table::new();
-                    table.add_row(Row::new(vec![
-                        Cell::new("Account"),
-                        Cell::new("Password")]));
-                    for x in String::from_utf8_lossy(&*plaintext).trim().to_string().split("\n") {
-                        table.add_row(Row::new(vec![
-                            Cell::new(x.split(" : ").nth(0).unwrap()),
-                            Cell::new(x.split(" : ").nth(1).unwrap())]));
-                    }
-                    table.printstd();
-                    std::process::exit(1);
-                }
-                if matches.is_present("create") {
-                    println!("what do you want the password account to be (ex. google.com)?");
-                    let mut new_accont:String = "".to_string();
-                    std::io::stdin().read_line(&mut new_accont).unwrap();
-                    new_accont = new_accont.trim().to_string();
-                    if new_accont.contains(" ") {
-                        println!("sorry your account cant have a space in it try something like www.google.com");
-                        std::io::stdin().read_line(&mut new_accont).unwrap();
-                        new_accont = new_accont.trim().to_string();
-                    }
-                    println!("what do you want the password to it");
-                    let mut new_pass:String = "".to_string();
-                    std::io::stdin().read_line(&mut new_pass).unwrap();
-                    new_pass = new_pass.trim().to_string();
-                    if new_accont.contains(" ") {
-                        println!("sorry your password can not have a space in it");
-                        std::io::stdin().read_line(&mut new_pass).unwrap();
-                        new_pass = new_pass.trim().to_string();
-                    }
-                    let decoded = hex::decode(contents.clone()).unwrap();
-                    let plaintext = cipher.decrypt(nonce, decoded.as_ref())
-                        .expect("decryption failure!");
-                    let split = String::from_utf8_lossy(&*plaintext).to_string().replace("\n", " : ");
-                    let split: Vec<&str> = split.split(" : ").collect();
-                    let mut account_names: Vec<String> = Vec::new();
-                    let mut passwords: Vec<String> = Vec::new();
-                    for x in 0..split.len() {
-                        if x % 2 == 0 {
-                            account_names.push(split[x].to_string());
-                        } else {
-                            passwords.push(split[x].to_string());
-                        }
-                    }
-                    if account_names.contains(&new_accont) {
-                        for x in 0..account_names.len() {
-                            if account_names[x] == new_accont {
-                                passwords[x] = new_pass.to_string();
-                            }
-                        }
-                        let mut new_text = "".to_string();
-                        for x in 0..account_names.len() {
-                            new_text.push_str([account_names[x].to_string(), " : ".to_string(), passwords[x].to_string(), "\n".to_string()].join("").as_str());
-                        }
-                        let ciphertext = cipher.encrypt(nonce, new_text.trim().as_ref())
-                            .expect("encryption failure!");
-                        write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
-                    }
-                    else {
-                        let ciphertext = cipher.encrypt(nonce, [String::from_utf8_lossy(&*plaintext).to_string(), "\n".to_string(), new_accont, " : ".to_string(), new_pass].join("").as_ref())
-                            .expect("encryption failure!");
-                        write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
-                    }
-                    std::process::exit(1);
+                let mut type_pick: String = "".to_string();
+                if !matches.is_present("find") && !matches.is_present("create") && !matches.is_present("list") && !matches.is_present("delete") {
+                    println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete a password\nshift+5 (%): Delete all passwords");
+                    std::io::stdin().read_line(&mut type_pick).unwrap();
+                    type_pick = type_pick.trim().to_string();
                 }
                 if matches.is_present("find") {
-                    let decoded = hex::decode(contents.clone()).unwrap();
-                    let plaintext = cipher.decrypt(nonce, decoded.as_ref())
-                        .expect("decryption failure!"); 
-                    let mut account = matches.value_of("find").unwrap().to_string();
-                    if account.contains(" ") {
-                        println!("Sorry the account you are looking for can not have a space in it");
-                        std::io::stdin().read_line(&mut account).unwrap();
-                        account = account.trim().to_string();
-                    }
-                    let split = String::from_utf8_lossy(&*plaintext).to_string().replace("\n", " : ");
-                    let split: Vec<&str> = split.split(" : ").collect();
-                    let mut account_names: Vec<String> = Vec::new();
-                    let mut passwords: Vec<String> = Vec::new();
-                    for x in 0..split.len() {
-                        if x % 2 == 0 {
-                            account_names.push(split[x].to_string());
-                        } else {
-                            passwords.push(split[x].to_string());
-                        }
-                    }
-                    let mut name = Vec::new();
-                    for x in account_names.clone() {
-                        if x.contains(&account) {
-                            name.push(x);
-                        }
-                    }
-                    if name.len() == 0 {
-                        println!("I have not fount any passwords with that name");
-                        std::process::exit(1);
-                    } else if name.len() == 1 {
-                        for x in 0..account_names.clone().len() {
-                            if name.first().unwrap() == &account_names[x] {
-                                println!("{}", passwords[x]);
-                            }
-                        }
-                    }
-                    else {
-                        println!("There is more than one password that has gotten back");
-                    }
-                    std::process::exit(1);
+                    type_pick = "2".to_string();
                 }
-                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete a password\nshift+5 (%): Delete all passwords");
-                let mut type_pick:String = "".to_string();
-                std::io::stdin().read_line(&mut type_pick).unwrap();
-                type_pick = type_pick.trim().to_string();
+                if matches.is_present("create") {
+                    type_pick = "1".to_string();
+                }
+                if matches.is_present("list") {
+                    type_pick = "3".to_string();
+                }
+                if matches.is_present("delete") {
+                    type_pick = "4".to_string();
+                }
                 if !["1", "2", "3", "4", "%"].contains(&&*type_pick) {
                     println!("Sorry but you have to pick on of the above type 1 etc");
                     std::io::stdin().read_line(&mut type_pick).unwrap();
@@ -315,11 +228,18 @@ fn main() {
                     let decoded = hex::decode(contents.clone()).unwrap();
                     let plaintext = cipher.decrypt(nonce, decoded.as_ref())
                         .expect("decryption failure!"); 
-                    println!("what account are you looking for?");
+                    if !matches.is_present("find") {
+                        println!("what account are you looking for?");
+                    }
                     loop {
                         let mut account: String = "".to_string();
-                        std::io::stdin().read_line(&mut account).unwrap();
-                        account = account.trim().to_string();
+                        if !matches.is_present("find") {
+                            std::io::stdin().read_line(&mut account).unwrap();
+                            account = account.trim().to_string();
+                        }
+                        else {
+                            account = matches.value_of("find").unwrap().to_string();
+                        }
                         if account.contains(" ") {
                             println!("Sorry the account you are looking for can not have a space in it");
                             std::io::stdin().read_line(&mut account).unwrap();
@@ -353,6 +273,10 @@ fn main() {
                             }
                             std::process::exit(1);
                         } else {
+                            if matches.is_present("find") {
+                                println!("I have found many results try making it more specific next time");
+                                std::process::exit(1);
+                            }
                             println!("I have found\n{}\nWhat password do you want?", name.join("\n"));
                         }
                     }
@@ -379,11 +303,18 @@ fn main() {
                     let decoded = hex::decode(contents.clone()).unwrap();
                     let plaintext = cipher.decrypt(nonce, decoded.as_ref())
                         .expect("decryption failure!");
-                    println!("what account are you looking for?");
+                    if !matches.is_present("delete") {
+                        println!("what account are you looking for?");
+                    }
                     loop {
                         let mut account: String = "".to_string();
-                        std::io::stdin().read_line(&mut account).unwrap();
-                        account = account.trim().to_string();
+                        if !matches.is_present("delete") {
+                            std::io::stdin().read_line(&mut account).unwrap();
+                            account = account.trim().to_string();
+                        }
+                        else {
+                            account = matches.value_of("delete").unwrap().to_string();
+                        }
                         if account.contains(" ") {
                             println!("Sorry the account you are looking for can not have a space in it");
                             std::io::stdin().read_line(&mut account).unwrap();
@@ -426,6 +357,10 @@ fn main() {
                             }
                             std::process::exit(1);
                         } else {
+                            if matches.is_present("delete") {
+                                println!("I have found many results try being more specific next time");
+                                std::process::exit(1);
+                            }
                             println!("I have found\n{}\nWhat password do you want?", name.join("\n"));
                         }
                     }
