@@ -145,7 +145,7 @@ fn main() {
                     table.add_row(Row::new(vec![
                         Cell::new("Account"),
                         Cell::new("Password")]));
-                    for x in String::from_utf8_lossy(&*plaintext).to_string().split("\n") {
+                    for x in String::from_utf8_lossy(&*plaintext).trim().to_string().split("\n") {
                         table.add_row(Row::new(vec![
                             Cell::new(x.split(" : ").nth(0).unwrap()),
                             Cell::new(x.split(" : ").nth(1).unwrap())]));
@@ -174,10 +174,37 @@ fn main() {
                     }
                     let decoded = hex::decode(contents.clone()).unwrap();
                     let plaintext = cipher.decrypt(nonce, decoded.as_ref())
-                        .expect("decryption failure!"); 
-                    let ciphertext = cipher.encrypt(nonce, [String::from_utf8_lossy(&*plaintext).to_string(), "\n".to_string(), new_accont, " : ".to_string(), new_pass].join("").as_ref())
-                        .expect("encryption failure!"); 
-                    write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                        .expect("decryption failure!");
+                    let split = String::from_utf8_lossy(&*plaintext).to_string().replace("\n", " : ");
+                    let split: Vec<&str> = split.split(" : ").collect();
+                    let mut account_names: Vec<String> = Vec::new();
+                    let mut passwords: Vec<String> = Vec::new();
+                    for x in 0..split.len() {
+                        if x % 2 == 0 {
+                            account_names.push(split[x].to_string());
+                        } else {
+                            passwords.push(split[x].to_string());
+                        }
+                    }
+                    if account_names.contains(&new_accont) {
+                        for x in 0..account_names.len() {
+                            if account_names[x] == new_accont {
+                                passwords[x] = new_pass.to_string();
+                            }
+                        }
+                        let mut new_text = "".to_string();
+                        for x in 0..account_names.len() {
+                            new_text.push_str([account_names[x].to_string(), " : ".to_string(), passwords[x].to_string(), "\n".to_string()].join("").as_str());
+                        }
+                        let ciphertext = cipher.encrypt(nonce, new_text.trim().as_ref())
+                            .expect("encryption failure!");
+                        write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                    }
+                    else {
+                        let ciphertext = cipher.encrypt(nonce, [String::from_utf8_lossy(&*plaintext).to_string(), "\n".to_string(), new_accont, " : ".to_string(), new_pass].join("").as_ref())
+                            .expect("encryption failure!");
+                        write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                    }
                     std::process::exit(1);
                 }
                 if matches.is_present("find") {
@@ -222,7 +249,7 @@ fn main() {
                     }
                     std::process::exit(1);
                 }
-                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete a password\nshift+5: Delete all passwords");
+                println!("Type the one you want\n1: add a password\n2: find a password\n3: list all passwords (UNSECURE)\n4: Delete a password\nshift+5 (%): Delete all passwords");
                 let mut type_pick:String = "".to_string();
                 std::io::stdin().read_line(&mut type_pick).unwrap();
                 type_pick = type_pick.trim().to_string();
@@ -252,10 +279,37 @@ fn main() {
                     }
                     let decoded = hex::decode(contents.clone()).unwrap();
                     let plaintext = cipher.decrypt(nonce, decoded.as_ref())
-                        .expect("decryption failure!"); 
-                    let ciphertext = cipher.encrypt(nonce, [String::from_utf8_lossy(&*plaintext).to_string(), "\n".to_string(), new_accont, " : ".to_string(), new_pass].join("").as_ref())
-                        .expect("encryption failure!"); 
-                    write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                        .expect("decryption failure!");
+                    let split = String::from_utf8_lossy(&*plaintext).to_string().replace("\n", " : ");
+                    let split: Vec<&str> = split.split(" : ").collect();
+                    let mut account_names: Vec<String> = Vec::new();
+                    let mut passwords: Vec<String> = Vec::new();
+                    for x in 0..split.len() {
+                        if x % 2 == 0 {
+                            account_names.push(split[x].to_string());
+                        } else {
+                            passwords.push(split[x].to_string());
+                        }
+                    }
+                    if account_names.contains(&new_accont) {
+                        for x in 0..account_names.len() {
+                            if account_names[x] == new_accont {
+                                passwords[x] = new_pass.to_string();
+                            }
+                        }
+                        let mut new_text = "".to_string();
+                        for x in 0..account_names.len() {
+                            new_text.push_str([account_names[x].to_string(), " : ".to_string(), passwords[x].to_string(), "\n".to_string()].join("").as_str());
+                        }
+                        let ciphertext = cipher.encrypt(nonce, new_text.trim().as_ref())
+                            .expect("encryption failure!");
+                        write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                    }
+                    else {
+                        let ciphertext = cipher.encrypt(nonce, [String::from_utf8_lossy(&*plaintext).to_string(), "\n".to_string(), new_accont, " : ".to_string(), new_pass].join("").as_ref())
+                            .expect("encryption failure!");
+                        write_file([base_dirs.config_dir().to_str().unwrap(), "/pas.man"].join(""), hex::encode(ciphertext));
+                    }
                 }
                 else if type_pick == "2" {
                     let decoded = hex::decode(contents.clone()).unwrap();
@@ -383,6 +437,6 @@ fn main() {
 
 fn write_file(file:String, text:String) -> std::io::Result<()> {
     let mut file = File::create(file)?;
-    file.write_all(text.as_ref())?;
+    file.write_all(text.trim().as_ref())?;
     Ok(())
 }
