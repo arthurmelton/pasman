@@ -6,6 +6,8 @@ use std::time::SystemTime;
 use std::io::{Write, Read};
 use aes_gcm::{Aes256Gcm, Key, Nonce}; // Or `Aes128Gcm`
 use aes_gcm::aead::{Aead, NewAead};
+use rand::seq::SliceRandom;
+use std::str::FromStr;
 
 fn main() {
     let matches = App::new("pasman")
@@ -32,6 +34,13 @@ fn main() {
                 .help("lists all the passwords you have")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("generate")
+                .short("g")
+                .long("generate")
+                .help("generates a password with the x chars long")
+                .takes_value(true),
+        )
         .get_matches();
     if matches.is_present("test") {
         let mut num = 0;
@@ -41,6 +50,14 @@ fn main() {
             num += 1;
         }
         println!("your computer can do {} hashes per second (Some computers can do WAY more than this)\n1 chars = {} seconds\n2 chars = {} seconds\n3 chars = {} seconds\n4 chars = {} seconds\n5 chars = {} seconds\n6 chars = {} seconds\n7 chars = {} seconds\n8 chars = {} seconds\n9 chars = {} seconds\n10 chars = {} seconds\n11 chars = {} seconds\n12 chars = {} seconds\n13 chars = {} seconds\n14 chars = {} seconds\n15 chars = {} seconds\n16 chars = {} seconds\n17 chars = {} seconds\n18 chars = {} seconds\n19 chars = {} seconds\n20 chars = {} seconds\n", num, (72_u128.pow(1)/num), (72_u128.pow(2)/num), (72_u128.pow(3)/num), (72_u128.pow(4)/num), (72_u128.pow(5)/num), (72_u128.pow(6)/num), (72_u128.pow(7)/num), (72_u128.pow(8)/num), (72_u128.pow(9)/num), (72_u128.pow(10)/num), (72_u128.pow(11)/num), (72_u128.pow(12)/num), (72_u128.pow(13)/num), (72_u128.pow(14)/num), (72_u128.pow(15)/num), (72_u128.pow(16)/num), (72_u128.pow(17)/num), (72_u128.pow(18)/num), (72_u128.pow(19)/num), (72_u128.pow(20)/num));
+    }
+    else if matches.is_present("generate") {
+        let chars = vec!['0','1','2','3','4','5','6','7','8','9','!','@','#','$','%','^','&','*','(',')','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+        let mut password:String = String::new();
+        for _x in 0..FromStr::from_str(matches.value_of("generate").unwrap()).unwrap() {
+            password.push_str(chars.choose(&mut rand::thread_rng()).unwrap().to_string().as_str())
+        }
+        println!("{}", password);
     }
     else {
         if let Some(base_dirs) = BaseDirs::new() {
